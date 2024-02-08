@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
+#include <wchar.h>
+#include <locale.h>
+#include <termios.h>
+#include <ctype.h>
 
 // TODO move consts, enums, types and functions to separate files
 
@@ -22,6 +27,22 @@
 #define MAX_SHIP_SIZE 6
 #define MIN_SHIP_SIZE 2
 
+#define RED L"\033[31m"
+#define GREEN L"\033[32m"
+#define YELLOW L"\033[33m"
+#define BLUE L"\033[34m"
+#define MAGENTA L"\033[35m"
+#define CYAN L"\033[36m"
+#define WHITE L"\033[37m"
+#define RESET L"\033[0m"
+
+#define TOP_LEFT_CORNER 0x2554
+#define HORIZONTAL_WALL 0x2550
+#define TOP_RIGHT_CORNER 0x2557
+#define VERTICAL_WALL 0x2551
+#define BOTTOM_LEFT_CORNER 0x255A
+#define BOTTOM_RIGHT_CORNER 0x255D
+
 enum State
 {
 	MENU = 0,
@@ -40,26 +61,6 @@ enum FieldType
 	FRAME = 5,
 	MISSED = 6,
 	TEMPORARILY_EXCLUDED = 7
-};
-
-enum Colors
-{
-	BLACK = 0,
-	BLUE = 1,
-	GREEN = 2,
-	TURQUOISE = 3,
-	RED = 4,
-	PURPLE = 5,
-	BROWN = 6,
-	LIGHT_GREY = 7,
-	DARK_GREY = 8,
-	LIGHT_BLUE = 9,
-	LIGHT_GREEN = 10,
-	LIGHT_TURQUOISE = 11,
-	LIGHT_RED = 12,
-	LIGHT_PURPLE = 13,
-	YELLOW = 14,
-	WHITE = 15
 };
 
 typedef struct
@@ -89,6 +90,32 @@ typedef struct
 	int Y;
 } Hit;
 
+char _getch(void)
+{
+	int ch;
+	struct termios oldt, newt;
+
+	// Get current terminal attributes
+	tcgetattr(STDIN_FILENO, &oldt);
+
+	// Make a copy of the attributes
+	newt = oldt;
+
+	// Modify the attributes to disable canonical mode and echo
+	newt.c_lflag &= ~(ICANON | ECHO);
+
+	// Apply the modified attributes
+	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+	// Read a character
+	ch = getchar();
+
+	// Restore the original terminal attributes
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+	return ch;
+}
+
 void ClearTable(DrawingTable table[])
 {
 	for (int i = 0; i < (SIZE - 2) * (SIZE - 2 - MIN_SHIP_SIZE + 1) * 2; i++)
@@ -102,852 +129,817 @@ void ClearTable(DrawingTable table[])
 
 void GoToXY(int x, int y)
 {
-	// COORD c;
-	// c.X = x - 1;
-	// c.Y = y - 1;
-	// SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
+	wprintf(L"\033[%d;%dH", y, x);
+}
+
+void ClearScreen()
+{
+	wprintf(L"\e[1;1H\e[2J");
 }
 
 void DrawShips(Field drawnTable[SIZE][SIZE], DrawingTable table[])
 {
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// {
-	// 	for (int j = 0; j < rozmiar - 2; j++)
-	// 	{
-	// 		tr[i + 1][j + 1].status = puste;
-	// 	}
-	// }
+	for (int i = 0; i < SIZE - 2; i++)
+	{
+		for (int j = 0; j < SIZE - 2; j++)
+		{
+			drawnTable[i + 1][j + 1].Status = EMPTY;
+		}
+	}
 
-	// short a;
-	// short czyok;
-	// int iter;
-	// for (int i = statek_maks; i > statek_min - 1; i--) /* i odpowiada rozmiarowi skatku */
-	// {
-	// 	czysct(t);
-	// 	iter = 0;
-	// 	a = 0; /* false */
-	// 	for (int x = 1; x < rozmiar - 1; x++)
-	// 	{
-	// 		for (int y = 1; y < rozmiar - 1 - i; y++)
-	// 		{
-	// 			czyok = 1; /* true */
-	// 			for (int j = 0; j < i; j++)
-	// 			{
-	// 				if (tr[x][y + j].status != puste)
-	// 				{
-	// 					czyok = 0; /* false */
-	// 					break;
-	// 				}
-	// 			}
-	// 			if (czyok)
-	// 			{
-	// 				t[iter].x = x;
-	// 				t[iter].y = y;
-	// 				t[iter].a = a;
-	// 				t[iter].ok = 1; /* true */
-	// 				iter++;
-	// 			}
-	// 		}
-	// 	}
-	// 	a = 1; /* true */
-	// 	for (int y = 1; y < rozmiar - 1; y++)
-	// 	{
-	// 		for (int x = 1; x < rozmiar - i; x++)
-	// 		{
-	// 			czyok = 1; /* true */
-	// 			for (int j = 0; j < i; j++)
-	// 			{
-	// 				if (tr[x + j][y].status != puste)
-	// 				{
-	// 					czyok = 0; /* false */
-	// 					break;
-	// 				}
-	// 			}
-	// 			if (czyok)
-	// 			{
-	// 				t[iter].x = x;
-	// 				t[iter].y = y;
-	// 				t[iter].a = a;
-	// 				t[iter].ok = 1; /* true */
-	// 				iter++;
-	// 			}
-	// 		}
-	// 	}
-	// 	iter = 0;
-	// 	while (t[iter].ok)
-	// 	{
-	// 		iter++;
-	// 	}
-	// 	iter = rand() % (iter - 1);
-	// 	a = t[iter].a;
-	// 	if (!a)
-	// 	{
-	// 		for (int j = 0; j < i; j++)
-	// 		{
-	// 			tr[t[iter].x][t[iter].y + j].status = nienaruszony;
-	// 			tr[t[iter].x - 1][t[iter].y + j].status = obok;
-	// 			tr[t[iter].x + 1][t[iter].y + j].status = obok;
-	// 			tr[t[iter].x][t[iter].y + j].typ_statku = i;
-	// 		}
-	// 		for (int j = 0; j < 3; j++)
-	// 		{
-	// 			tr[t[iter].x - 1 + j][t[iter].y - 1].status = obok;
-	// 			tr[t[iter].x - 1 + j][t[iter].y + i].status = obok;
-	// 		}
-	// 	}
-	// 	else
-	// 	{
-	// 		for (int j = 0; j < i; j++)
-	// 		{
-	// 			tr[t[iter].x + j][t[iter].y].status = nienaruszony;
-	// 			tr[t[iter].x + j][t[iter].y - 1].status = obok;
-	// 			tr[t[iter].x + j][t[iter].y + 1].status = obok;
-	// 			tr[t[iter].x + j][t[iter].y].typ_statku = i;
-	// 		}
-	// 		for (int j = 0; j < 3; j++)
-	// 		{
-	// 			tr[t[iter].x - 1][t[iter].y - 1 + j].status = obok;
-	// 			tr[t[iter].x + i][t[iter].y - 1 + j].status = obok;
-	// 		}
-	// 	}
-	// 	Sleep(5);
-	// }
-	// for (int i = 0; i < rozmiar; i++)
-	// {
-	// 	tr[i][0].status = ramka;
-	// 	tr[i][rozmiar - 1].status = ramka;
-	// }
-	// for (int i = 0; i < rozmiar; i++)
-	// {
-	// 	tr[0][i].status = ramka;
-	// 	tr[rozmiar - 1][i].status = ramka;
-	// }
+	short direction;
+	short ifOk;
+	int helpIterator;
+	for (int i = MAX_SHIP_SIZE; i > MIN_SHIP_SIZE - 1; i--)
+	{
+		ClearTable(table);
+		helpIterator = 0;
+		direction = 0;
+		for (int x = 1; x < SIZE - 1; x++)
+		{
+			for (int y = 1; y < SIZE - 1 - i; y++)
+			{
+				ifOk = 1;
+				for (int j = 0; j < i; j++)
+				{
+					if (drawnTable[x][y + j].Status != EMPTY)
+					{
+						ifOk = 0;
+						break;
+					}
+				}
+				if (ifOk)
+				{
+					table[helpIterator].X = x;
+					table[helpIterator].Y = y;
+					table[helpIterator].Direction = direction;
+					table[helpIterator].Ok = 1;
+					helpIterator++;
+				}
+			}
+		}
+		direction = 1;
+		for (int y = 1; y < SIZE - 1; y++)
+		{
+			for (int x = 1; x < SIZE - i; x++)
+			{
+				ifOk = 1;
+				for (int j = 0; j < i; j++)
+				{
+					if (drawnTable[x + j][y].Status != EMPTY)
+					{
+						ifOk = 0;
+						break;
+					}
+				}
+				if (ifOk)
+				{
+					table[helpIterator].X = x;
+					table[helpIterator].Y = y;
+					table[helpIterator].Direction = direction;
+					table[helpIterator].Ok = 1;
+					helpIterator++;
+				}
+			}
+		}
+		helpIterator = 0;
+		while (table[helpIterator].Ok)
+		{
+			helpIterator++;
+		}
+		helpIterator = rand() % (helpIterator - 1);
+		direction = table[helpIterator].Direction;
+		if (!direction)
+		{
+			for (int j = 0; j < i; j++)
+			{
+				drawnTable[table[helpIterator].X][table[helpIterator].Y + j].Status = SHIP_INTACT;
+				drawnTable[table[helpIterator].X - 1][table[helpIterator].Y + j].Status = NEARBY;
+				drawnTable[table[helpIterator].X + 1][table[helpIterator].Y + j].Status = NEARBY;
+				drawnTable[table[helpIterator].X][table[helpIterator].Y + j].ShipSize = i;
+			}
+			for (int j = 0; j < 3; j++)
+			{
+				drawnTable[table[helpIterator].X - 1 + j][table[helpIterator].Y - 1].Status = NEARBY;
+				drawnTable[table[helpIterator].X - 1 + j][table[helpIterator].Y + i].Status = NEARBY;
+			}
+		}
+		else
+		{
+			for (int j = 0; j < i; j++)
+			{
+				drawnTable[table[helpIterator].X + j][table[helpIterator].Y].Status = SHIP_INTACT;
+				drawnTable[table[helpIterator].X + j][table[helpIterator].Y - 1].Status = NEARBY;
+				drawnTable[table[helpIterator].X + j][table[helpIterator].Y + 1].Status = NEARBY;
+				drawnTable[table[helpIterator].X + j][table[helpIterator].Y].ShipSize = i;
+			}
+			for (int j = 0; j < 3; j++)
+			{
+				drawnTable[table[helpIterator].X - 1][table[helpIterator].Y - 1 + j].Status = NEARBY;
+				drawnTable[table[helpIterator].X + i][table[helpIterator].Y - 1 + j].Status = NEARBY;
+			}
+		}
+	}
+	for (int i = 0; i < SIZE; i++)
+	{
+		drawnTable[i][0].Status = FRAME;
+		drawnTable[i][SIZE - 1].Status = FRAME;
+	}
+	for (int i = 0; i < SIZE; i++)
+	{
+		drawnTable[0][i].Status = FRAME;
+		drawnTable[SIZE - 1][i].Status = FRAME;
+	}
 }
 
 void PrepareBoard()
 {
-	// system("cls");
+	ClearScreen();
 
-	// /*tabela wynikow */
-	// gotoxy(wyniki_x, wyniki_y);
-	// printf("%c", (char)201);
-	// for (int i = 0; i < 5; i++)
-	// 	printf("%c", (char)205);
-	// printf("%c", (char)187);
-	// gotoxy(wyniki_x, wyniki_y + 1);
-	// printf("%c", (char)186);
-	// gotoxy(wyniki_x + 3, wyniki_y + 1);
-	// printf(":");
-	// gotoxy(wyniki_x + 6, wyniki_y + 1);
-	// printf("%c", (char)186);
-	// gotoxy(wyniki_x, wyniki_y + 2);
-	// printf("%c", (char)186);
-	// gotoxy(wyniki_x + 3, wyniki_y + 2);
-	// printf(":");
-	// gotoxy(wyniki_x + 6, wyniki_y + 2);
-	// printf("%c", (char)186);
-	// gotoxy(wyniki_x, wyniki_y + 3);
-	// printf("%c", (char)200);
-	// for (int i = 0; i < 5; i++)
-	// 	printf("%c", (char)205);
-	// printf("%c", (char)188);
+	// RESULTS
+	GoToXY(RESULTS_X, RESULTS_Y);
+	wprintf(L"%lc", TOP_LEFT_CORNER);
+	for (int i = 0; i < 5; i++)
+		wprintf(L"%lc", HORIZONTAL_WALL);
 
-	// /*tablica gracza */
-	// gotoxy(gracz_x + 2, gracz_y);
-	// printf("0123456789");
-	// gotoxy(gracz_x + 1, gracz_y + 1);
-	// printf("%c", (char)201);
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// 	printf("%c", (char)205);
-	// printf("%c", (char)187);
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// {
-	// 	gotoxy(gracz_x + 1, gracz_y + 2 + i);
-	// 	printf("%c", (char)186);
-	// 	gotoxy(gracz_x + rozmiar, gracz_y + 2 + i);
-	// 	printf("%c", (char)186);
-	// }
-	// gotoxy(gracz_x + 1, gracz_y + rozmiar);
-	// printf("%c", (char)200);
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// 	printf("%c", (char)205);
-	// printf("%c", (char)188);
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// {
-	// 	gotoxy(gracz_x, gracz_y + 2 + i);
-	// 	printf("%c", (char)(i + 'A'));
-	// }
+	wprintf(L"%lc", TOP_RIGHT_CORNER);
+	GoToXY(RESULTS_X, RESULTS_Y + 1);
+	wprintf(L"%lc", VERTICAL_WALL);
+	GoToXY(RESULTS_X + 3, RESULTS_Y + 1);
+	wprintf(L":");
+	GoToXY(RESULTS_X + 6, RESULTS_Y + 1);
+	wprintf(L"%lc", VERTICAL_WALL);
+	GoToXY(RESULTS_X, RESULTS_Y + 2);
+	wprintf(L"%lc", VERTICAL_WALL);
+	GoToXY(RESULTS_X + 3, RESULTS_Y + 2);
+	wprintf(L":");
+	GoToXY(RESULTS_X + 6, RESULTS_Y + 2);
+	wprintf(L"%lc", VERTICAL_WALL);
+	GoToXY(RESULTS_X, RESULTS_Y + 3);
+	wprintf(L"%lc", BOTTOM_LEFT_CORNER);
+	for (int i = 0; i < 5; i++)
+		wprintf(L"%lc", HORIZONTAL_WALL);
+	wprintf(L"%lc", BOTTOM_RIGHT_CORNER);
 
-	// /*tablica przeciwnika */
-	// gotoxy(bot_x + 2, bot_y);
-	// printf("0123456789");
-	// gotoxy(bot_x + 1, bot_y + 1);
-	// printf("%c", (char)201);
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// 	printf("%c", (char)205);
-	// printf("%c", (char)187);
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// {
-	// 	gotoxy(bot_x + 1, bot_y + 2 + i);
-	// 	printf("%c", (char)186);
-	// 	gotoxy(bot_x + rozmiar, bot_y + 2 + i);
-	// 	printf("%c", (char)186);
-	// }
-	// gotoxy(bot_x + 1, bot_y + rozmiar);
-	// printf("%c", (char)200);
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// 	printf("%c", (char)205);
-	// printf("%c", (char)188);
-	// for (int i = 0; i < rozmiar - 2; i++)
-	// {
-	// 	gotoxy(bot_x, bot_y + 2 + i);
-	// 	printf("%c", (char)(i + 'A'));
-	// }
+	// PLAYER TABLE
+	GoToXY(PLAYER_X + 2, PLAYER_Y);
+	wprintf(L"0123456789");
+	GoToXY(PLAYER_X + 1, PLAYER_Y + 1);
+	wprintf(L"%lc", TOP_LEFT_CORNER);
+	for (int i = 0; i < SIZE - 2; i++)
+		wprintf(L"%lc", HORIZONTAL_WALL);
+	wprintf(L"%lc", TOP_RIGHT_CORNER);
+	for (int i = 0; i < SIZE - 2; i++)
+	{
+		GoToXY(PLAYER_X + 1, PLAYER_Y + 2 + i);
+		wprintf(L"%lc", VERTICAL_WALL);
+		GoToXY(PLAYER_X + SIZE, PLAYER_Y + 2 + i);
+		wprintf(L"%lc", VERTICAL_WALL);
+	}
+	GoToXY(PLAYER_X + 1, PLAYER_Y + SIZE);
+	wprintf(L"%lc", BOTTOM_LEFT_CORNER);
+	for (int i = 0; i < SIZE - 2; i++)
+		wprintf(L"%lc", HORIZONTAL_WALL);
+	wprintf(L"%lc", BOTTOM_RIGHT_CORNER);
+	for (int i = 0; i < SIZE - 2; i++)
+	{
+		GoToXY(PLAYER_X, PLAYER_Y + 2 + i);
+		wprintf(L"%lc", (wchar_t)(i + 'A'));
+	}
 
-	// /*tablica komentarzy */
-	// gotoxy(komentarze_x, komentarze_y);
-	// printf("%c", (char)201);
-	// for (int i = 0; i < 11; i++)
-	// 	printf("%c", (char)205);
-	// printf("%c", (char)187);
-	// for (int i = 0; i < 3; i++)
-	// {
-	// 	gotoxy(komentarze_x, komentarze_y + 1 + i);
-	// 	printf("%c           %c", (char)186, (char)186);
-	// }
-	// gotoxy(komentarze_x, komentarze_y + 4);
-	// printf("%c", (char)200);
-	// for (int i = 0; i < 11; i++)
-	// 	printf("%c", (char)205);
-	// printf("%c", (char)188);
+	// BOT TABLE
+	GoToXY(BOT_X + 2, BOT_Y);
+	wprintf(L"0123456789");
+	GoToXY(BOT_X + 1, BOT_Y + 1);
+	wprintf(L"%lc", TOP_LEFT_CORNER);
+	for (int i = 0; i < SIZE - 2; i++)
+		wprintf(L"%lc", HORIZONTAL_WALL);
+	wprintf(L"%lc", TOP_RIGHT_CORNER);
+	for (int i = 0; i < SIZE - 2; i++)
+	{
+		GoToXY(BOT_X + 1, BOT_Y + 2 + i);
+		wprintf(L"%lc", VERTICAL_WALL);
+		GoToXY(BOT_X + SIZE, BOT_Y + 2 + i);
+		wprintf(L"%lc", VERTICAL_WALL);
+	}
+	GoToXY(BOT_X + 1, BOT_Y + SIZE);
+	wprintf(L"%lc", BOTTOM_LEFT_CORNER);
+	for (int i = 0; i < SIZE - 2; i++)
+		wprintf(L"%lc", HORIZONTAL_WALL);
+	wprintf(L"%lc", BOTTOM_RIGHT_CORNER);
+	for (int i = 0; i < SIZE - 2; i++)
+	{
+		GoToXY(BOT_X, BOT_Y + 2 + i);
+		wprintf(L"%lc", (wchar_t)(i + 'A'));
+	}
 
-	// /*legenda */
-	// gotoxy(legenda_x, legenda_y);
-	// SetTextColor(jasnozielony);
-	// printf("H");
-	// SetTextColor(7);
-	// printf(" - STATEK");
-	// gotoxy(legenda_x, legenda_y + 1);
-	// SetTextColor(jasnoszary);
-	// printf("O");
-	// printf(" - PUSTE/NIEODKRYTE");
-	// gotoxy(legenda_x, legenda_y + 2);
-	// SetTextColor(jasnoczerwony);
-	// printf("X");
-	// SetTextColor(7);
-	// printf(" - TRAFIONY");
-	// gotoxy(legenda_x, legenda_y + 3);
-	// SetTextColor(jasnoniebieski);
-	// printf("Z");
-	// SetTextColor(7);
-	// printf(" - ZATOPIONY");
-	// gotoxy(legenda_x, legenda_y + 4);
-	// SetTextColor(brazowy);
-	// printf("&");
-	// SetTextColor(7);
-	// printf(" - PUDLO");
+	// COMMENTS
+	GoToXY(COMMENTS_X, COMMENTS_Y);
+	wprintf(L"%lc", TOP_LEFT_CORNER);
+	for (int i = 0; i < 11; i++)
+		wprintf(L"%lc", HORIZONTAL_WALL);
+	wprintf(L"%lc", TOP_RIGHT_CORNER);
+	for (int i = 0; i < 3; i++)
+	{
+		GoToXY(COMMENTS_X, COMMENTS_Y + 1 + i);
+		wprintf(L"%lc           %lc", VERTICAL_WALL, VERTICAL_WALL);
+	}
+	GoToXY(COMMENTS_X, COMMENTS_Y + 4);
+	wprintf(L"%lc", BOTTOM_LEFT_CORNER);
+	for (int i = 0; i < 11; i++)
+		wprintf(L"%lc", HORIZONTAL_WALL);
+	wprintf(L"%lc", BOTTOM_RIGHT_CORNER);
 
-	// /* "okno" dialogowe ;) */
-	// gotoxy(dialog_x, dialog_y);
-	// printf("%c%c%c%c", (char)201, (char)205, (char)205, (char)187);
-	// gotoxy(dialog_x, dialog_y + 1);
-	// printf("%c  %c", (char)186, (char)186);
-	// gotoxy(dialog_x, dialog_y + 2);
-	// printf("%c%c%c%c", (char)200, (char)205, (char)205, (char)188);
+	// LEGEND
+	GoToXY(LEGEND_X, LEGEND_Y);
+	wprintf(GREEN L"H" RESET);
+	wprintf(L" - SHIP");
+	GoToXY(LEGEND_X, LEGEND_Y + 1);
+	wprintf(L"O");
+	wprintf(L" - EMPTY/UNDISCOVERED");
+	GoToXY(LEGEND_X, LEGEND_Y + 2);
+	wprintf(RED L"X" RESET);
+	wprintf(L" - HIT");
+	GoToXY(LEGEND_X, LEGEND_Y + 3);
+	wprintf(BLUE L"Z" RESET);
+	wprintf(L" - SUNK");
+	GoToXY(LEGEND_X, LEGEND_Y + 4);
+	wprintf(CYAN L"&" RESET);
+	wprintf(L" - MISS");
+
+	// DIALOG BOX
+	GoToXY(DIALOG_X, DIALOG_Y);
+	wprintf(L"%lc%lc%lc%lc", TOP_LEFT_CORNER, HORIZONTAL_WALL, HORIZONTAL_WALL, TOP_RIGHT_CORNER);
+	GoToXY(DIALOG_X, DIALOG_Y + 1);
+	wprintf(L"%lc  %lc", VERTICAL_WALL, VERTICAL_WALL);
+	GoToXY(DIALOG_X, DIALOG_Y + 2);
+	wprintf(L"%lc%lc%lc%lc", BOTTOM_LEFT_CORNER, HORIZONTAL_WALL, HORIZONTAL_WALL, BOTTOM_RIGHT_CORNER);
+
+	fflush(stdout);
 }
 
 void DrawPlayer(Field playerTable[SIZE][SIZE], short ifPlayer, short visibilityTable[SIZE - 2][SIZE - 2])
 {
-	// if (czyg)
-	// {
-	// 	for (int x = 1; x < rozmiar - 1; x++)
-	// 	{
-	// 		for (int y = 1; y < rozmiar - 1; y++)
-	// 		{
-	// 			gotoxy(x + gracz_x + 1, y + gracz_y + 1);
-	// 			switch (tr[x][y].status)
-	// 			{
-	// 			case (0):
-	// 			{
-	// 				SetTextColor(jasnoszary);
-	// 				printf("O");
-	// 				break;
-	// 			}
-	// 			case (1):
-	// 			{
-	// 				SetTextColor(jasnozielony);
-	// 				printf("H");
-	// 				break;
-	// 			}
-	// 			case (2):
-	// 			{
-	// 				SetTextColor(jasnoczerwony);
-	// 				printf("X");
-	// 				break;
-	// 			}
-	// 			case (3):
-	// 			{
-	// 				SetTextColor(jasnoniebieski);
-	// 				printf("Z");
-	// 				break;
-	// 			}
-	// 			case (4):
-	// 			{
-	// 				SetTextColor(jasnoszary);
-	// 				printf("O");
-	// 				break;
-	// 			}
-	// 			case (6):
-	// 			{
-	// 				SetTextColor(brazowy);
-	// 				printf("&");
-	// 				break;
-	// 			}
-	// 			}
-	// 		}
-	// 	}
-	// }
-	// else
-	// {
-	// 	for (int x = 1; x < rozmiar - 1; x++)
-	// 	{
-	// 		for (int y = 1; y < rozmiar - 1; y++)
-	// 		{
-	// 			gotoxy(x + bot_x + 1, y + bot_y + 1);
-	// 			if (tablica_widocznosci[x - 1][y - 1])
-	// 			{
-	// 				switch (tr[x][y].status)
-	// 				{
-	// 				case (5):
-	// 					break;
-	// 				case (0):
-	// 				{
-	// 					SetTextColor(jasnoszary);
-	// 					printf("O");
-	// 					break;
-	// 				}
-	// 				case (1):
-	// 				{
-	// 					SetTextColor(jasnozielony);
-	// 					printf("H");
-	// 					break;
-	// 				}
-	// 				case (2):
-	// 				{
-	// 					SetTextColor(jasnoczerwony);
-	// 					printf("X");
-	// 					break;
-	// 				}
-	// 				case (3):
-	// 				{
-	// 					SetTextColor(jasnoniebieski);
-	// 					printf("Z");
-	// 					break;
-	// 					break;
-	// 				}
-	// 				case (6):
-	// 				{
-	// 					SetTextColor(brazowy);
-	// 					printf("&");
-	// 					break;
-	// 				}
-	// 				}
-	// 			}
-	// 			else
-	// 			{
-	// 				SetTextColor(jasnoszary);
-	// 				printf("O");
-	// 			}
-	// 		}
-	// 	}
-	// }
+	if (ifPlayer)
+	{
+		for (int x = 1; x < SIZE - 1; x++)
+		{
+			for (int y = 1; y < SIZE - 1; y++)
+			{
+				GoToXY(x + PLAYER_X + 1, y + PLAYER_Y + 1);
+				switch (playerTable[x][y].Status)
+				{
+				case (EMPTY):
+				{
+					wprintf(L"O");
+					break;
+				}
+				case (SHIP_INTACT):
+				{
+					wprintf(GREEN L"H" RESET);
+					break;
+				}
+				case (SHIP_HIT):
+				{
+					wprintf(RED L"X" RESET);
+					break;
+				}
+				case (SHIP_SUNK):
+				{
+					wprintf(BLUE L"Z" RESET);
+					break;
+				}
+				case (NEARBY):
+				{
+					wprintf(L"O");
+					break;
+				}
+				case (MISSED):
+				{
+					wprintf(CYAN L"&" RESET);
+					break;
+				}
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int x = 1; x < SIZE - 1; x++)
+		{
+			for (int y = 1; y < SIZE - 1; y++)
+			{
+				GoToXY(x + BOT_X + 1, y + BOT_Y + 1);
+				if (visibilityTable[x - 1][y - 1])
+				{
+					switch (playerTable[x][y].Status)
+					{
+					case (FRAME):
+						break;
+					case (EMPTY):
+					{
+						wprintf(L"O");
+						break;
+					}
+					case (SHIP_INTACT):
+					{
+						wprintf(GREEN L"H" RESET);
+						break;
+					}
+					case (SHIP_HIT):
+					{
+						wprintf(RED L"X" RESET);
+						break;
+					}
+					case (SHIP_SUNK):
+					{
+						wprintf(BLUE L"Z" RESET);
+						break;
+					}
+					case (MISSED):
+					{
+						wprintf(CYAN L"&" RESET);
+						break;
+					}
+					}
+				}
+				else
+				{
+					wprintf(L"O");
+				}
+			}
+		}
+	}
+	fflush(stdout);
 }
 
-void SetTextColor(int color)
+void ShowCursor(short show)
 {
-	// WORD wColor;
-
-	// HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	// CONSOLE_SCREEN_BUFFER_INFO csbi;
-	// if (GetConsoleScreenBufferInfo(hStdOut, &csbi))
-	// {
-	// 	wColor = (csbi.wAttributes & 0xF0) + (ForgC & 0x0F);
-	// 	SetConsoleTextAttribute(hStdOut, wColor);
-	// }
-}
-
-void ShowCursor(int showFlag)
-{
-	// HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-
-	// CONSOLE_CURSOR_INFO cursorInfo;
-
-	// GetConsoleCursorInfo(out, &cursorInfo);
-	// cursorInfo.bVisible = showFlag;
-	// SetConsoleCursorInfo(out, &cursorInfo);
+	if (show)
+		wprintf(L"\e[?25h");
+	else
+		wprintf(L"\e[?25l");
 }
 
 void ClearDialog()
 {
-	// gotoxy(dialog_x, dialog_y);
-	// printf("%c%c%c%c", (char)201, (char)205, (char)205, (char)187);
-	// gotoxy(dialog_x, dialog_y + 1);
-	// printf("%c  %c", (char)186, (char)186);
-	// gotoxy(dialog_x, dialog_y + 2);
-	// printf("%c%c%c%c", (char)200, (char)205, (char)205, (char)188);
+	GoToXY(DIALOG_X, DIALOG_Y);
+	wprintf(L"%lc%lc%lc%lc", TOP_LEFT_CORNER, HORIZONTAL_WALL, HORIZONTAL_WALL, TOP_RIGHT_CORNER);
+	GoToXY(DIALOG_X, DIALOG_Y + 1);
+	wprintf(L"%lc  %lc", VERTICAL_WALL, VERTICAL_WALL);
+	GoToXY(DIALOG_X, DIALOG_Y + 2);
+	wprintf(L"%lc%lc%lc%lc", BOTTOM_LEFT_CORNER, HORIZONTAL_WALL, HORIZONTAL_WALL, BOTTOM_RIGHT_CORNER);
+	fflush(stdout);
 }
 
 void ClearComments()
 {
-	// gotoxy(komentarze_x + 1, komentarze_y + 1);
-	// printf("           ");
-	// gotoxy(komentarze_x + 1, komentarze_y + 2);
-	// printf("           ");
-	// gotoxy(komentarze_x + 1, komentarze_y + 3);
-	// printf("           ");
-	// return;
+	GoToXY(COMMENTS_X + 1, COMMENTS_Y + 1);
+	wprintf(L"           ");
+	GoToXY(COMMENTS_X + 1, COMMENTS_Y + 2);
+	wprintf(L"           ");
+	GoToXY(COMMENTS_X + 1, COMMENTS_Y + 3);
+	wprintf(L"           ");
+	fflush(stdout);
 }
 
 int HitsSum(int table[])
 {
-	// int suma = 0;
-	// for (int i = statek_min - 2; i < statek_maks - 1; i++)
-	// {
-	// 	suma += tab[i];
-	// }
-	// return suma;
-	return 0;
+	int sum = 0;
+	for (int i = MIN_SHIP_SIZE - 2; i < MAX_SHIP_SIZE - 1; i++)
+	{
+		sum += table[i];
+	}
+	return sum;
 }
 
-void PrepareFields(Coordinates fields[(SIZE - 2) * (SIZE - 2)])
+void PrepareFields(Field fields[SIZE][SIZE])
 {
-	// for (int y = 1; y < rozmiar - 1; y++)
-	// {
-	// 	for (int x = 1; x < rozmiar - 1; x++)
-	// 	{
-	// 		pom[x][y].status = puste;
-	// 	}
-	// }
-	// int opcja = rand() % 2;
-	// for (int y = 1; y < rozmiar - 1; y++)
-	// {
-	// 	for (int x = 1; x < rozmiar - 1; x += 2)
-	// 	{
-	// 		pom[x + (y + opcja) % 2][y].status = tym_wykl;
-	// 	}
-	// }
-	// for (int i = 0; i < rozmiar; i++)
-	// {
-	// 	pom[0][i].status = ramka;
-	// 	pom[rozmiar - 1][i].status = ramka;
-	// }
-	// for (int i = 0; i < rozmiar; i++)
-	// {
-	// 	pom[i][0].status = ramka;
-	// 	pom[i][rozmiar - 1].status = ramka;
-	// }
+	for (int y = 1; y < SIZE - 1; y++)
+	{
+		for (int x = 1; x < SIZE - 1; x++)
+		{
+			fields[x][y].Status = EMPTY;
+		}
+	}
+	int var = rand() % 2;
+	for (int y = 1; y < SIZE - 1; y++)
+	{
+		for (int x = 1; x < SIZE - 1; x += 2)
+		{
+			fields[x + (y + var) % 2][y].Status = TEMPORARILY_EXCLUDED;
+		}
+	}
+	for (int i = 0; i < SIZE; i++)
+	{
+		fields[0][i].Status = FRAME;
+		fields[SIZE - 1][i].Status = FRAME;
+	}
+	for (int i = 0; i < SIZE; i++)
+	{
+		fields[i][0].Status = FRAME;
+		fields[i][SIZE - 1].Status = FRAME;
+	}
 }
 
 int HandleMenu(int *currentState, Field playersTable[SIZE][SIZE], Field botsTable[SIZE][SIZE], Field helpTable[SIZE][SIZE], short visibilityTable[SIZE - 2][SIZE - 2])
 {
-	// char a;
-	// pokaz_kursor(0);
-	// system("cls");
+	char character;
+	ShowCursor(0);
+	ClearScreen();
 
-	// gotoxy(menu_x + 2, menu_y);
-	// printf("MENU");
-	// gotoxy(menu_x, menu_y + 1);
-	// printf("1) Graj");
-	// gotoxy(menu_x, menu_y + 2);
-	// printf("2) Pomoc");
-	// gotoxy(menu_x, menu_y + 3);
-	// printf("3) Wyjdz");
+	GoToXY(MENU_X + 2, MENU_Y);
+	wprintf(L"MENU");
+	GoToXY(MENU_X, MENU_Y + 1);
+	wprintf(L"1) Play");
+	GoToXY(MENU_X, MENU_Y + 2);
+	wprintf(L"2) Help");
+	GoToXY(MENU_X, MENU_Y + 3);
+	wprintf(L"3) Quit");
 
-	// a = _getch();
-	// if (a == '1')
-	// {
-	// 	tabdorysst tablica_mozliwosci[(rozmiar - 2) * (rozmiar - 2 - statek_min + 1) * 2];
-	// 	rysuj_statki(tablica_gracza, tablica_mozliwosci);
-	// 	rysuj_statki(tablica_bota, tablica_mozliwosci);
-	// 	przygotuj_plansze();
-	// 	gotoxy(wyniki_x + 1, wyniki_y + 1);
-	// 	printf("00:00");
-	// 	gotoxy(wyniki_x + 1, wyniki_y + 2);
-	// 	printf("00:00");
-	// 	rysuj_gracza(tablica_gracza, 1, tablica_widocznosci);
-	// 	rysuj_gracza(tablica_bota, 0, tablica_widocznosci);
-	// 	przygotuj_pola(tablica_pomocnicza);
-	// 	*obecny = gracz;
-	// }
-	// else if (a == '2')
-	// {
-	// 	*obecny = pomoc;
-	// 	return 0;
-	// }
-	// else if (a == '3')
-	// 	return 1;
+	character = _getch();
+	if (character == '1')
+	{
+		DrawingTable drawingTable[(SIZE - 2) * (SIZE - 2 - MIN_SHIP_SIZE + 1) * 2];
+		DrawShips(playersTable, drawingTable);
+		DrawShips(botsTable, drawingTable);
+		PrepareBoard();
+		GoToXY(RESULTS_X + 1, RESULTS_Y + 1);
+		wprintf(L"00:00");
+		GoToXY(RESULTS_X + 1, RESULTS_Y + 2);
+		wprintf(L"00:00");
+		DrawPlayer(playersTable, 1, visibilityTable);
+		DrawPlayer(botsTable, 0, visibilityTable);
+		PrepareFields(playersTable);
+		*currentState = PLAYER;
+	}
+	else if (character == '2')
+	{
+		*currentState = HELP;
+		return 0;
+	}
+	else if (character == '3')
+		return 1;
 
 	return 0;
 }
 
 void HandlePlayersMove(int *currentState, Field table[SIZE][SIZE], short visibilityTable[SIZE - 2][SIZE - 2], int hits[5], int *sinks)
 {
-	// SetTextColor(jasnoszary);
-	// char wspolrzedne[20] = {0};
+	char coordinates[20] = {0};
 
-	// ClearComments();
-	// gotoxy(komentarze_x + 3, komentarze_y + 1);
-	// printf("PROSZE");
-	// gotoxy(komentarze_x + 3, komentarze_y + 2);
-	// printf("WPISAC");
-	// gotoxy(komentarze_x + 1, komentarze_y + 3);
-	// printf("WSPOLRZEDNE");
+	ClearComments();
+	GoToXY(COMMENTS_X + 3, COMMENTS_Y + 1);
+	wprintf(L"PLEASE");
+	GoToXY(COMMENTS_X + 3, COMMENTS_Y + 2);
+	wprintf(L"ENTER");
+	GoToXY(COMMENTS_X + 1, COMMENTS_Y + 3);
+	wprintf(L"COORDS");
 
-	// pokaz_kursor(1);
+	ShowCursor(1);
 
-	// char x = -1;
-	// char y = -1;
+	char x = -1;
+	char y = -1;
 
-	// while ((y > rozmiar - 2) || (y < 0) || (x > rozmiar - 2) || (x < 0))
-	// {
-	// 	ClearDialog();
-	// 	gotoxy(dialog_x + 1, dialog_y + 1);
+	while ((y > SIZE - 2) || (y < 0) || (x > SIZE - 2) || (x < 0))
+	{
+		ClearDialog();
+		GoToXY(DIALOG_X + 1, DIALOG_Y + 1);
 
-	// 	scanf("%s", &wspolrzedne);
+		scanf("%s", &coordinates);
 
-	// 	x = (wspolrzedne[1] - '0');
-	// 	y = toupper(wspolrzedne[0]) - 'A';
-	// }
+		x = (coordinates[1] - '0');
+		y = toupper(coordinates[0]) - 'A';
+	}
 
-	// ClearComments();
-	// pokaz_kursor(0);
+	ClearComments();
+	ShowCursor(0);
 
-	// tablica_widocznosci[x][y] = 1;
-	// if ((tab[x + 1][y + 1].status == puste) || (tab[x + 1][y + 1].status == obok))
-	// {
-	// 	tab[x + 1][y + 1].status = pudlo;
-	// 	gotoxy(komentarze_x + 4, komentarze_y + 2);
-	// 	printf("PUDLO");
-	// }
-	// else
-	// {
-	// 	if (tab[x + 1][y + 1].status == nienaruszony)
-	// 	{
-	// 		gotoxy(komentarze_x + 2, komentarze_y + 2);
-	// 		printf("TRAFIONY");
-	// 		tab[x + 1][y + 1].status = trafiony;
-	// 		trafienia[tab[x + 1][y + 1].typ_statku - 2]++;
-	// 		if (trafienia[tab[x + 1][y + 1].typ_statku - 2] == tab[x + 1][y + 1].typ_statku)
-	// 		{
-	// 			gotoxy(komentarze_x + 2, komentarze_y + 3);
-	// 			printf("ZATOPIONY");
-	// 			(*zatopienia)++;
-	// 			for (int i = 1; i < rozmiar - 1; i++)
-	// 			{
-	// 				for (int j = 1; j < rozmiar - 1; j++)
-	// 				{
-	// 					if (tab[i][j].typ_statku == tab[x + 1][y + 1].typ_statku)
-	// 						tab[i][j].status = zatopiony;
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
-	// gotoxy(wyniki_x + 1, wyniki_y + 1);
-	// printf("%02d", *zatopienia);
-	// gotoxy(wyniki_x + 1, wyniki_y + 2);
-	// printf("%02d", HitsSum(trafienia));
-	// rysuj_gracza(tab, 0, tablica_widocznosci);
-	// Sleep(900);
-	// ClearComments();
-	// ClearDialog();
+	visibilityTable[x][y] = 1;
+	if ((table[x + 1][y + 1].Status == EMPTY) || (table[x + 1][y + 1].Status == NEARBY))
+	{
+		table[x + 1][y + 1].Status = MISSED;
+		GoToXY(COMMENTS_X + 4, COMMENTS_Y + 2);
+		wprintf(L"MISS");
+	}
+	else
+	{
+		if (table[x + 1][y + 1].Status == SHIP_INTACT)
+		{
+			GoToXY(COMMENTS_X + 2, COMMENTS_Y + 2);
+			wprintf(L"HIT");
+			table[x + 1][y + 1].Status = SHIP_HIT;
+			hits[table[x + 1][y + 1].ShipSize - 2]++;
+			if (hits[table[x + 1][y + 1].ShipSize - 2] == table[x + 1][y + 1].ShipSize)
+			{
+				GoToXY(COMMENTS_X + 2, COMMENTS_Y + 3);
+				wprintf(L"SUNK");
+				(*sinks)++;
+				for (int i = 1; i < SIZE - 1; i++)
+				{
+					for (int j = 1; j < SIZE - 1; j++)
+					{
+						if (table[i][j].ShipSize == table[x + 1][y + 1].ShipSize)
+							table[i][j].Status = SHIP_SUNK;
+					}
+				}
+			}
+		}
+	}
 
-	// if ((*zatopienia) == 5)
-	// {
-	// 	gotoxy(komentarze_x + 1, komentarze_y + 2);
-	// 	printf("ZWYCIESTWO!");
-	// 	_getch();
-	// 	*obecny = menu;
-	// 	return;
-	// }
+	GoToXY(RESULTS_X + 1, RESULTS_Y + 1);
+	wprintf(L"%02d", *sinks);
+	GoToXY(RESULTS_X + 1, RESULTS_Y + 2);
+	wprintf(L"%02d", HitsSum(hits));
+	DrawPlayer(table, 0, visibilityTable);
+	sleep(1);
+	ClearComments();
+	ClearDialog();
 
-	// *obecny = bot;
+	if ((*hits) == 5)
+	{
+		GoToXY(COMMENTS_X + 1, COMMENTS_Y + 2);
+		wprintf(L"YOU WIN!");
+		_getch();
+		*currentState = MENU;
+		return;
+	}
+
+	*currentState = BOT;
 }
 
 void HandleBotsMove(int *currentState, Field table[SIZE][SIZE], Field helpTable[SIZE][SIZE], int hits[], int *sinks, Hit *thereWasAHit, Hit *firstHit, short visibilityTable[SIZE - 2][SIZE - 2])
 {
-	// SetTextColor(jasnoszary);
-	// if (bylo_trafienie->bylo_t)
-	// {
-	// 	trafienie pula[4] = {0};
-	// 	if (bylo_trafienie->y != 0)
-	// 	{
-	// 		pula[0].x = bylo_trafienie->x;
-	// 		pula[0].y = bylo_trafienie->y - 1;
-	// 		pula[0].bylo_t = 2;
-	// 	}
-	// 	if (bylo_trafienie->x != rozmiar - 2)
-	// 	{
-	// 		pula[1].x = bylo_trafienie->x + 1;
-	// 		pula[1].y = bylo_trafienie->y;
-	// 		pula[1].bylo_t = 2;
-	// 	}
-	// 	if (bylo_trafienie->y != rozmiar - 2)
-	// 	{
-	// 		pula[2].x = bylo_trafienie->x;
-	// 		pula[2].y = bylo_trafienie->y + 1;
-	// 		pula[2].bylo_t = 2;
-	// 	}
-	// 	if (bylo_trafienie->x != 0)
-	// 	{
-	// 		pula[3].x = bylo_trafienie->x - 1;
-	// 		pula[3].y = bylo_trafienie->y;
-	// 		pula[3].bylo_t = 2;
-	// 	}
+	if (thereWasAHit->HitSuccessful)
+	{
+		Hit pool[4] = {0};
+		if (thereWasAHit->Y != 0)
+		{
+			pool[0].X = thereWasAHit->X;
+			pool[0].Y = thereWasAHit->Y - 1;
+			pool[0].HitSuccessful = 2;
+		}
+		if (thereWasAHit->X != SIZE - 2)
+		{
+			pool[1].X = thereWasAHit->X + 1;
+			pool[1].Y = thereWasAHit->Y;
+			pool[1].HitSuccessful = 2;
+		}
+		if (thereWasAHit->Y != SIZE - 2)
+		{
+			pool[2].X = thereWasAHit->X;
+			pool[2].Y = thereWasAHit->Y + 1;
+			pool[2].HitSuccessful = 2;
+		}
+		if (thereWasAHit->X != 0)
+		{
+			pool[3].X = thereWasAHit->X - 1;
+			pool[3].Y = thereWasAHit->Y;
+			pool[3].HitSuccessful = 2;
+		}
 
-	// 	for (int i = 0; i < 4; i++)
-	// 	{
-	// 		if (pula[i].bylo_t == 2)
-	// 		{
-	// 			if ((pom[pula[i].x + 1][pula[i].y + 1].status == puste) || (pom[pula[i].x + 1][pula[i].y + 1].status == tym_wykl))
-	// 				pula[i].bylo_t = 1;
-	// 		}
-	// 	}
+		for (int i = 0; i < 4; i++)
+		{
+			if (pool[i].HitSuccessful == 2)
+			{
+				if ((helpTable[pool[i].X + 1][pool[i].Y + 1].Status == EMPTY) || (helpTable[pool[i].X + 1][pool[i].Y + 1].Status == TEMPORARILY_EXCLUDED))
+					pool[i].HitSuccessful = 1;
+			}
+		}
 
-	// 	trafienie los[4];
-	// 	int ile = 0;
-	// 	for (int i = 0; i < 4; i++)
-	// 	{
-	// 		if (pula[i].bylo_t == 1)
-	// 		{
-	// 			los[ile] = pula[i];
-	// 			ile++;
-	// 		}
-	// 	}
-	// 	if (ile == 0)
-	// 	{
-	// 		*bylo_trafienie = *pierwsze_trafienie;
-	// 		*obecny = bot;
-	// 		return;
-	// 	}
+		Hit randomPool[4];
+		int howMuchHits = 0;
+		for (int i = 0; i < 4; i++)
+		{
+			if (pool[i].HitSuccessful == 1) // TODO rethink equals 1, should it be just if HitSuccessful?
+			{
+				randomPool[howMuchHits] = pool[i];
+				howMuchHits++;
+			}
+		}
+		if (howMuchHits == 0)
+		{
+			*thereWasAHit = *firstHit;
+			*currentState = BOT;
+			return;
+		}
 
-	// 	int x = 0, y = 0, wybor;
+		int x = 0, y = 0, choice;
 
-	// 	wybor = rand() % ile;
-	// 	x = los[wybor].x;
-	// 	y = los[wybor].y;
+		choice = rand() % howMuchHits;
+		x = randomPool[choice].X;
+		y = randomPool[choice].Y;
 
-	// 	ClearComments();
+		ClearComments();
 
-	// 	gotoxy(komentarze_x + 1, komentarze_y + 2);
-	// 	printf("STRZELAM W:");
-	// 	gotoxy(komentarze_x + 5, komentarze_y + 3);
-	// 	printf("%c%d", y + 'A', x);
-	// 	Sleep(900);
+		GoToXY(COMMENTS_X + 1, COMMENTS_Y + 2);
+		wprintf(L"Target:");
+		GoToXY(COMMENTS_X + 5, COMMENTS_Y + 3);
+		wprintf(L"%c%d", y + 'A', x);
+		sleep(1);
 
-	// 	ClearComments();
+		ClearComments();
 
-	// 	if ((tab[x + 1][y + 1].status == puste) || (tab[x + 1][y + 1].status == obok))
-	// 	{
-	// 		tab[x + 1][y + 1].status = pudlo;
-	// 		pom[x + 1][y + 1].status = pudlo;
-	// 		gotoxy(komentarze_x + 4, komentarze_y + 2);
-	// 		printf("PUDLO");
-	// 	}
-	// 	else
-	// 	{
-	// 		if (tab[x + 1][y + 1].status == 1)
-	// 		{
-	// 			gotoxy(komentarze_x + 2, komentarze_y + 2);
-	// 			printf("TRAFIONY");
-	// 			tab[x + 1][y + 1].status = trafiony;
-	// 			pom[x + 1][y + 1].status = trafiony;
-	// 			if ((x != 0) && (y != 0))
-	// 				pom[x][y].status = obok;
-	// 			if ((x != 0) && (y != rozmiar - 2))
-	// 				pom[x][y + 2].status = obok;
-	// 			if ((x != rozmiar - 2) && (y != 0))
-	// 				pom[x + 2][y].status = obok;
-	// 			if ((x != rozmiar - 2) && (y != rozmiar - 2))
-	// 				pom[x + 2][y + 2].status = obok;
-	// 			bylo_trafienie->bylo_t = 1; /* true */
-	// 			bylo_trafienie->x = x;
-	// 			bylo_trafienie->y = y;
-	// 			trafienia[tab[x + 1][y + 1].typ_statku - 2]++;
-	// 			if (trafienia[tab[x + 1][y + 1].typ_statku - 2] == tab[x + 1][y + 1].typ_statku)
-	// 			{
-	// 				gotoxy(komentarze_x + 2, komentarze_y + 3);
-	// 				printf("ZATOPIONY");
-	// 				(*zatopienia)++;
-	// 				bylo_trafienie->bylo_t = 0;
-	// 				for (int i = 1; i < rozmiar - 1; i++)
-	// 				{
-	// 					for (int j = 1; j < rozmiar - 1; j++)
-	// 					{
-	// 						if (tab[i][j].typ_statku == tab[x + 1][y + 1].typ_statku)
-	// 							tab[i][j].status = zatopiony;
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// 	gotoxy(wyniki_x + 4, wyniki_y + 1);
-	// 	printf("%02d", *zatopienia);
-	// 	gotoxy(wyniki_x + 4, wyniki_y + 2);
-	// 	printf("%02d", HitsSum(trafienia));
-	// 	rysuj_gracza(tab, 1, tablica_widocznosci);
-	// 	Sleep(900);
-	// 	ClearComments();
-	// 	ClearDialog();
+		if ((table[x + 1][y + 1].Status == EMPTY) || (table[x + 1][y + 1].Status == NEARBY))
+		{
+			table[x + 1][y + 1].Status = MISSED;
+			helpTable[x + 1][y + 1].Status = MISSED;
+			GoToXY(COMMENTS_X + 4, COMMENTS_Y + 2);
+			wprintf(L"MISS");
+		}
+		else
+		{
+			if (table[x + 1][y + 1].Status == 1)
+			{
+				GoToXY(COMMENTS_X + 2, COMMENTS_Y + 2);
+				wprintf(L"HIT");
+				table[x + 1][y + 1].Status = SHIP_HIT;
+				helpTable[x + 1][y + 1].Status = SHIP_HIT;
+				if ((x != 0) && (y != 0))
+					helpTable[x][y].Status = NEARBY;
+				if ((x != 0) && (y != SIZE - 2))
+					helpTable[x][y + 2].Status = NEARBY;
+				if ((x != SIZE - 2) && (y != 0))
+					helpTable[x + 2][y].Status = NEARBY;
+				if ((x != SIZE - 2) && (y != SIZE - 2))
+					helpTable[x + 2][y + 2].Status = NEARBY;
+				thereWasAHit->HitSuccessful = 1;
+				thereWasAHit->X = x;
+				thereWasAHit->Y = y;
+				hits[table[x + 1][y + 1].ShipSize - 2]++;
+				if (hits[table[x + 1][y + 1].ShipSize - 2] == table[x + 1][y + 1].ShipSize)
+				{
+					GoToXY(COMMENTS_X + 2, COMMENTS_Y + 3);
+					wprintf(L"SUNK");
+					(*sinks)++;
+					thereWasAHit->HitSuccessful = 0;
+					for (int i = 1; i < SIZE - 1; i++)
+					{
+						for (int j = 1; j < SIZE - 1; j++)
+						{
+							if (table[i][j].ShipSize == table[x + 1][y + 1].ShipSize)
+								table[i][j].Status = SHIP_SUNK;
+						}
+					}
+				}
+			}
+		}
+		GoToXY(RESULTS_X + 4, RESULTS_Y + 1);
+		wprintf(L"%02d", *sinks);
+		GoToXY(RESULTS_X + 4, RESULTS_Y + 2);
+		wprintf(L"%02d", HitsSum(hits));
+		DrawPlayer(table, 1, visibilityTable);
+		sleep(1);
+		ClearComments();
+		ClearDialog();
 
-	// 	if ((*zatopienia) == 5)
-	// 	{
-	// 		gotoxy(komentarze_x + 3, komentarze_y + 2);
-	// 		printf("PORAZKA");
-	// 		_getch();
-	// 		*obecny = menu;
-	// 		return;
-	// 	}
-	// }
+		if ((*sinks) == 5)
+		{
+			GoToXY(COMMENTS_X + 3, COMMENTS_Y + 2);
+			wprintf(L"YOU LOSE");
+			_getch();
+			*currentState = MENU;
+		}
+	}
 
-	// else
-	// {
-	// 	trafienie los[(rozmiar - 2) * (rozmiar - 2) / 2];
-	// 	int i = 0;
-	// 	for (int x = 0; x < rozmiar - 2; x++)
-	// 	{
-	// 		for (int y = 0; y < rozmiar - 2; y++)
-	// 		{
-	// 			if (pom[x + 1][y + 1].status == puste)
-	// 			{
-	// 				los[i].x = x;
-	// 				los[i].y = y;
-	// 				i++;
-	// 			}
-	// 		}
-	// 	}
-	// 	int x = 0, y = 0, wybor;
+	else
+	{
+		Hit randomPool[(SIZE - 2) * (SIZE - 2) / 2];
+		int i = 0;
+		for (int x = 0; x < SIZE - 2; x++)
+		{
+			for (int y = 0; y < SIZE - 2; y++)
+			{
+				if (helpTable[x + 1][y + 1].Status == EMPTY)
+				{
+					randomPool[i].X = x;
+					randomPool[i].Y = y;
+					i++;
+				}
+			}
+		}
+		int x = 0, y = 0, choice;
 
-	// 	wybor = rand() % i;
-	// 	x = los[wybor].x;
-	// 	y = los[wybor].y;
+		choice = rand() % i;
+		x = randomPool[choice].X;
+		y = randomPool[choice].Y;
 
-	// 	ClearComments();
+		ClearComments();
 
-	// 	gotoxy(komentarze_x + 1, komentarze_y + 2);
-	// 	printf("STRZELAM W:");
-	// 	gotoxy(komentarze_x + 5, komentarze_y + 3);
-	// 	printf("%c%d", y + 'A', x);
-	// 	Sleep(900);
+		GoToXY(COMMENTS_X + 1, COMMENTS_Y + 2);
+		wprintf(L"Target:");
+		GoToXY(COMMENTS_X + 5, COMMENTS_Y + 3);
+		wprintf(L"%c%d", y + 'A', x);
+		sleep(1);
 
-	// 	ClearComments();
+		ClearComments();
 
-	// 	if ((tab[x + 1][y + 1].status == puste) || (tab[x + 1][y + 1].status == obok))
-	// 	{
-	// 		tab[x + 1][y + 1].status = pudlo;
-	// 		pom[x + 1][y + 1].status = pudlo;
-	// 		gotoxy(komentarze_x + 4, komentarze_y + 2);
-	// 		printf("PUDLO");
-	// 		bylo_trafienie->bylo_t = 0; /* false */
-	// 	}
-	// 	else
-	// 	{
-	// 		if (tab[x + 1][y + 1].status == nienaruszony)
-	// 		{
-	// 			gotoxy(komentarze_x + 2, komentarze_y + 2);
-	// 			printf("TRAFIONY");
-	// 			tab[x + 1][y + 1].status = trafiony;
-	// 			pom[x + 1][y + 1].status = trafiony;
-	// 			if ((x != 0) && (y != 0))
-	// 				pom[x][y].status = obok;
-	// 			if ((x != 0) && (y != rozmiar - 2))
-	// 				pom[x][y + 2].status = obok;
-	// 			if ((x != rozmiar - 2) && (y != 0))
-	// 				pom[x + 2][y].status = obok;
-	// 			if ((x != rozmiar - 2) && (y != rozmiar - 2))
-	// 				pom[x + 2][y + 2].status = obok;
-	// 			bylo_trafienie->bylo_t = 1; /* true */
-	// 			bylo_trafienie->x = x;
-	// 			bylo_trafienie->y = y;
-	// 			*pierwsze_trafienie = *bylo_trafienie;
-	// 			trafienia[tab[x + 1][y + 1].typ_statku - 2]++;
-	// 			if (trafienia[tab[x + 1][y + 1].typ_statku - 2] == tab[x + 1][y + 1].typ_statku)
-	// 			{
-	// 				gotoxy(komentarze_x + 2, komentarze_y + 3);
-	// 				printf("ZATOPIONY");
-	// 				(*zatopienia)++;
-	// 				for (int i = 1; i < rozmiar - 1; i++)
-	// 				{
-	// 					for (int j = 1; j < rozmiar - 1; j++)
-	// 					{
-	// 						if (tab[i][j].typ_statku == tab[x + 1][y + 1].typ_statku)
-	// 							tab[i][j].status = zatopiony;
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// 	gotoxy(wyniki_x + 4, wyniki_y + 1);
-	// 	printf("%02d", *zatopienia);
-	// 	gotoxy(wyniki_x + 4, wyniki_y + 2);
-	// 	printf("%02d", HitsSum(trafienia));
-	// 	rysuj_gracza(tab, 1, tablica_widocznosci);
-	// 	Sleep(900);
-	// 	ClearComments();
-	// 	ClearDialog();
+		if ((table[x + 1][y + 1].Status == EMPTY) || (table[x + 1][y + 1].Status == NEARBY))
+		{
+			table[x + 1][y + 1].Status = MISSED;
+			helpTable[x + 1][y + 1].Status = MISSED;
+			GoToXY(COMMENTS_X + 4, COMMENTS_Y + 2);
+			wprintf(L"MISS");
+			thereWasAHit->HitSuccessful = 0;
+		}
+		else
+		{
+			if (table[x + 1][y + 1].Status == SHIP_INTACT)
+			{
+				GoToXY(COMMENTS_X + 2, COMMENTS_Y + 2);
+				wprintf(L"HIT");
+				table[x + 1][y + 1].Status = SHIP_HIT;
+				helpTable[x + 1][y + 1].Status = SHIP_HIT;
+				if ((x != 0) && (y != 0))
+					helpTable[x][y].Status = NEARBY;
+				if ((x != 0) && (y != SIZE - 2))
+					helpTable[x][y + 2].Status = NEARBY;
+				if ((x != SIZE - 2) && (y != 0))
+					helpTable[x + 2][y].Status = NEARBY;
+				if ((x != SIZE - 2) && (y != SIZE - 2))
+					helpTable[x + 2][y + 2].Status = NEARBY;
+				thereWasAHit->HitSuccessful = 1;
+				thereWasAHit->X = x;
+				thereWasAHit->Y = y;
+				*firstHit = *thereWasAHit;
+				hits[table[x + 1][y + 1].ShipSize - 2]++;
+				if (hits[table[x + 1][y + 1].ShipSize - 2] == table[x + 1][y + 1].ShipSize)
+				{
+					GoToXY(COMMENTS_X + 2, COMMENTS_Y + 3);
+					wprintf(L"SUNK");
+					(*sinks)++;
+					for (int i = 1; i < SIZE - 1; i++)
+					{
+						for (int j = 1; j < SIZE - 1; j++)
+						{
+							if (table[i][j].ShipSize == table[x + 1][y + 1].ShipSize)
+								table[i][j].Status = SHIP_SUNK;
+						}
+					}
+				}
+			}
+		}
+		GoToXY(RESULTS_X + 4, RESULTS_Y + 1);
+		wprintf(L"%02d", *sinks);
+		GoToXY(RESULTS_X + 4, RESULTS_Y + 2);
+		wprintf(L"%02d", HitsSum(hits));
+		DrawPlayer(table, 1, visibilityTable);
+		sleep(1);
+		ClearComments();
+		ClearDialog();
 
-	// 	if ((*zatopienia) == 5)
-	// 	{
-	// 		gotoxy(komentarze_x + 3, komentarze_y + 2);
-	// 		printf("PORAZKA");
-	// 		_getch();
-	// 		*obecny = menu;
-	// 		return;
-	// 	}
-	// }
-	// *obecny = gracz;
+		if ((*sinks) == 5)
+		{
+			GoToXY(COMMENTS_X + 3, COMMENTS_Y + 2);
+			wprintf(L"YOU LOSE");
+			_getch();
+			*currentState = MENU;
+			return;
+		}
+	}
+	*currentState = PLAYER;
 }
 
 void HandleHelp(int *currentState)
 {
-	// przygotuj_plansze();
+	PrepareBoard();
 
-	// gotoxy(dialog_x - 2, dialog_y - 3);
-	// printf("Okno");
-	// gotoxy(dialog_x - 2, dialog_y - 2);
-	// printf("dialogowe");
+	GoToXY(DIALOG_X - 2, DIALOG_Y - 3);
+	wprintf(L"Dialog");
+	GoToXY(DIALOG_X - 2, DIALOG_Y - 2);
+	wprintf(L"window");
 
-	// gotoxy(gracz_x + 3, gracz_y + 5);
-	// printf("Plansza");
-	// gotoxy(gracz_x + 4, gracz_y + 6);
-	// printf("gracza");
+	GoToXY(PLAYER_X + 3, PLAYER_Y + 5);
+	wprintf(L"Player");
+	GoToXY(PLAYER_X + 4, PLAYER_Y + 6);
+	wprintf(L"board");
 
-	// gotoxy(bot_x + 3, bot_y + 5);
-	// printf("Plansza");
-	// gotoxy(bot_x + 4, bot_y + 6);
-	// printf("bota");
+	GoToXY(BOT_X + 3, BOT_Y + 5);
+	wprintf(L"Bot");
+	GoToXY(BOT_X + 4, BOT_Y + 6);
+	wprintf(L"board");
 
-	// gotoxy(wyniki_x - 8, wyniki_y);
-	// printf("Tablica");
-	// gotoxy(wyniki_x - 8, wyniki_y + 1);
-	// printf("wynikow");
-	// gotoxy(wyniki_x + 7, wyniki_y + 1);
-	// printf("zatopienia");
-	// gotoxy(wyniki_x + 7, wyniki_y + 2);
-	// printf("trafienia");
-	// gotoxy(wyniki_x - 2, wyniki_y + 4);
-	// printf("gracz:bot");
+	GoToXY(RESULTS_X - 8, RESULTS_Y);
+	wprintf(L"Results");
+	GoToXY(RESULTS_X - 8, RESULTS_Y + 1);
+	wprintf(L"table");
+	GoToXY(RESULTS_X + 7, RESULTS_Y + 1);
+	wprintf(L"Sinks");
+	GoToXY(RESULTS_X + 7, RESULTS_Y + 2);
+	wprintf(L"Hits");
+	GoToXY(RESULTS_X - 2, RESULTS_Y + 4);
+	wprintf(L"Player:Bot");
 
-	// gotoxy(komentarze_x + 1, komentarze_y + 1);
-	// printf("Okno");
-	// gotoxy(komentarze_x + 2, komentarze_y + 2);
-	// printf("komentarzy");
+	GoToXY(COMMENTS_X + 1, COMMENTS_Y + 1);
+	wprintf(L"Comments");
+	GoToXY(COMMENTS_X + 2, COMMENTS_Y + 2);
+	wprintf(L"window");
 
-	// gotoxy(legenda_x, legenda_y - 2);
-	// printf("Legenda:");
+	GoToXY(LEGEND_X, LEGEND_Y - 2);
+	wprintf(L"Legend:");
 
-	// _getch();
-	// *obecny = menu;
+	_getch();
+	*currentState = MENU;
 }
 
 Field PlayersBoard[SIZE][SIZE], BotsBoard[SIZE][SIZE], HelpBoard[SIZE][SIZE];
@@ -958,10 +950,13 @@ Hit ThereWasAHit = {0, 0, 0}, FirstHit = {0, 0, 0};
 
 int main()
 {
-	SetTextColor(LIGHT_GREY);
+	setlocale(LC_CTYPE, "");
+	ShowCursor(0);
+
 	srand(time(NULL));
-	int CurrentState = HELP; // TODO make it MENU
-	int GameFinished = 1;	 // TODO make it 0
+	int CurrentState = MENU; // TODO make it MENU
+	int GameFinished = 0;	 // TODO make it 0
+	PrepareBoard();
 
 	while (1)
 	{
@@ -983,5 +978,6 @@ int main()
 			break;
 	}
 
+	ClearScreen();
 	return 0;
 }
